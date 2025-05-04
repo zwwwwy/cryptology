@@ -101,7 +101,7 @@ unsigned long des_n_rounds(unsigned long info, unsigned long* key_lst, int round
 		// printf("开始第%d轮DES\n", i + 1);
 		key_i = 0;
 		// PC2_replacement(key_lst[i], &key_i);
-		key_i = key_lst[i];
+		key_i = key_lst[i] & 0x0000ffffffffffff;
 		// printf("本轮的子密钥:0x%.16lx\n", key_i);
 
 		R_replaced = 0;
@@ -131,7 +131,8 @@ unsigned long des_n_rounds(unsigned long info, unsigned long* key_lst, int round
 	R	= L;
 	L	= tmp;
 	tmp = (L << 32) + R;
-	IP	= 0;
+	// printf("tmp=%lx\n", tmp);
+	IP = 0;
 	IP_replacement(tmp, &IP, ip_table_r);
 
 	return IP;

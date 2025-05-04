@@ -9,7 +9,7 @@
 unsigned long key_generate(unsigned long key, unsigned long* ret)
 {
 	unsigned int count = 0;
-	printf("原始密钥:0x%.16lx\n", key);
+	// printf("原始密钥:0x%.16lx\n", key);
 	for (int i = 0; i < 64; ++i)
 	{
 		if ((i + 1) % 8 == 0)
@@ -29,7 +29,7 @@ unsigned long key_generate(unsigned long key, unsigned long* ret)
 		if (i != 63)
 			*ret >>= 1;
 	}
-	printf("含校验位:0x%.16lx\n", *ret);
+	// printf("含校验位:0x%.16lx\n", *ret);
 	return 1;
 }
 
@@ -57,7 +57,7 @@ unsigned long key_check(unsigned long key, unsigned long* ret)
 		}
 	}
 	*ret >>= 7;
-	printf("复原密钥:0x%.16lx\n", *ret);
-	printf("密钥校验通过\n");
+	// printf("复原密钥:0x%.16lx\n", *ret);
+	// printf("密钥校验通过\n");
 	return 1;
 }

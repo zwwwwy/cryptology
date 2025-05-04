@@ -34,14 +34,14 @@ unsigned long encrypt(unsigned long key, unsigned long plain, unsigned long roun
 	key0 = 0;
 	key_check(key_tmp, &key0);
 	key_lst_generate(key_tmp, key_lst);
-	printf("\n");
+	// printf("\n");
 
 	for (int i = 0; i < rounds; ++i)
 		printf("key%d:\t0x%.16lx\n", i, key_lst[i]);
 	printf("子钥生成完成\n\n");
 
 	unsigned long cipher = des_n_rounds(plain, key_lst, rounds);
-	printf("密文:0x%.16lx\n", cipher);
+	// printf("密文:0x%.16lx\n", cipher);
 
 	unsigned long key_lst_2[16];
 	for (int i = 0; i < rounds; ++i)
@@ -49,12 +49,12 @@ unsigned long encrypt(unsigned long key, unsigned long plain, unsigned long roun
 		key_lst_2[rounds - 1 - i] = key_lst[i];
 	}
 	unsigned long plain_text = des_n_rounds(cipher, key_lst_2, rounds);
-	printf("明文:0x%.16lx\n", plain_text);
+	// printf("明文:0x%.16lx\n", plain_text);
 
 	return cipher;
 }
 
-void single_diff_attack(unsigned long key, unsigned long plain1_ip, unsigned long plain2_ip, int* count)
+void single_diff_attack(unsigned long key, unsigned long plain1_ip, unsigned long plain2_ip, int* count, int idx)
 {
 	single_in_out_s l;
 	single_in_out_init(&l);
@@ -85,17 +85,16 @@ void single_diff_attack(unsigned long key, unsigned long plain1_ip, unsigned lon
 	E_replacement(L31, &EL31);
 	E_replacement(L32, &EL32);
 
-	distribute((EL31 ^ EL32) & 0x3f, 7, &l);
-	list_print(l.in_xor[C_xor & 0xf]);
+	int move4 = 4 * (7 - idx), move6 = 6 * (7 - idx);
 
-	printf("EL31=%lx\n", EL31);
-	printf("EL32=%lx\n", EL32);
-	printf("C0_xor=%lx\n", C_xor);
+	distribute(((EL31 ^ EL32) & (0x3ful << move6)) >> move6, idx, &l);
 
-	node_t* head = l.in_xor[C_xor & 0xf]->head;
-	for (int j = 0; j < l.in_xor[C_xor & 0xf]->size; ++j)
+	unsigned long current_X_xor = (C_xor & (0xful << move4)) >> move4;
+
+	node_t* head = l.in_xor[current_X_xor]->head;
+	for (int j = 0; j < l.in_xor[current_X_xor]->size; ++j)
 	{
-		++count[(EL31 & 0x3f) ^ (head->data)];
+		++count[((EL31 & (0x3ful << move6)) >> move6) ^ (head->data)];
 		head = head->next;
 	}
 }
@@ -104,20 +103,45 @@ int main()
 {
 
 	unsigned long key = 0x123456789abcdef0;
-	// 构造IP置换后的明文，R0应该相同
-	unsigned long plain1_ip = 0x213f231412345678;
-	unsigned long plain2_ip = 0x2312314912345678;
-
-	int count[64] = {0};
-
-	single_diff_attack(key, plain1_ip, plain2_ip, count);
-	single_diff_attack(key, 0x2312314912345678, 0xefac214512345678, count);
-
-	for (int i = 0; i < 64; ++i)
+	srand(41);
+	unsigned long k3 = 0;
+	for (int idx = 0; idx < 8; ++idx)
 	{
-		if (count[i])
-			printf("%.6b=%d\n", i, count[i]);
+		int count[64] = {0};
+		while (1)
+		{
+			unsigned int a = rand();
+			unsigned int b = rand();
+			unsigned int c = rand();
+
+			unsigned long plain1_ip = ((unsigned long)a << 32) | 0xffffffff;
+			unsigned long plain2_ip = ((unsigned long)b << 32) | 0xffffffff;
+
+			single_diff_attack(key, plain1_ip, plain2_ip, count, idx);
+
+			int max = 0, max_count = 0, max_i = 0;
+			for (int i = 0; i < 64; ++i)
+			{
+				if (count[i])
+				{
+					if (count[i] > max)
+					{
+						max		  = count[i];
+						max_i	  = i;
+						max_count = 1;
+					}
+					else if (count[i] == max)
+						++max_count;
+				}
+			}
+			if (max_count == 1)
+			{
+				k3 |= ((unsigned long)max_i << (6 * (7 - idx)));
+				break;
+			}
+		}
 	}
 
+	printf("k3=%.12lx\n", k3);
 	return 0;
 }
