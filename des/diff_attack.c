@@ -8,25 +8,16 @@
 extern const unsigned char ip_table[64];
 extern const unsigned char ip_table_r[64];
 
+// idx为s盒的下标,l存放单个s盒的结果
 int distribute(unsigned long in, int idx, single_in_out_s* l)
 {
-	unsigned long s1;
-	unsigned long s2;
-	unsigned long b1;
-	unsigned long b2;
-	unsigned char distribute_table[16];
-
-	for (int i = 0; i < 16; ++i)
-	{
-		distribute_table[i] = 0;
-	}
+	unsigned long s1, s2, b1, b2;
 
 	for (b1 = 0; b1 < 0b100000; ++b1)
 	{
 		b2 = b1 ^ in;
 		S_replacement_single(b1, &s1, idx);
 		S_replacement_single(b2, &s2, idx);
-		distribute_table[s1 ^ s2] += 2;
 		list_append(l->in_xor[s1 ^ s2], b1);
 		list_append(l->in_xor[s1 ^ s2], b2);
 	}
@@ -63,21 +54,10 @@ unsigned long encrypt(unsigned long key, unsigned long plain, unsigned long roun
 	return cipher;
 }
 
-int main()
+void single_diff_attack(unsigned long key, unsigned long plain1_ip, unsigned long plain2_ip, int* count)
 {
 	single_in_out_s l;
 	single_in_out_init(&l);
-	// distribute(0b110100, 0, &l);
-	// list_print(l.in_xor[0b1100]);
-
-	unsigned long key = 0x123456789abcdef0;
-	// 构造IP置换后的明文，R0应该相同
-	unsigned long plain1_ip = 0x213f231412345678;
-	unsigned long plain2_ip = 0x2312314912345678;
-
-	// unsigned long c1 = encrypt(key, plain1, 3);
-	// unsigned long c2 = encrypt(key, plain2, 3);
-
 	// 通过IP逆置换获得对应明文，用于下面加密
 	unsigned long plain1 = 0, plain2 = 0;
 	IP_replacement(plain1_ip, &plain1, ip_table_r);
@@ -108,29 +88,36 @@ int main()
 	distribute((EL31 ^ EL32) & 0x3f, 7, &l);
 	list_print(l.in_xor[C_xor & 0xf]);
 
-	int		count[64] = {0};
-	node_t* head	  = l.in_xor[C_xor & 0xf]->head;
+	printf("EL31=%lx\n", EL31);
+	printf("EL32=%lx\n", EL32);
+	printf("C0_xor=%lx\n", C_xor);
+
+	node_t* head = l.in_xor[C_xor & 0xf]->head;
 	for (int j = 0; j < l.in_xor[C_xor & 0xf]->size; ++j)
 	{
 		++count[(EL31 & 0x3f) ^ (head->data)];
-		++count[(EL32 & 0x3f) ^ (head->data)];
 		head = head->next;
 	}
+}
+
+int main()
+{
+
+	unsigned long key = 0x123456789abcdef0;
+	// 构造IP置换后的明文，R0应该相同
+	unsigned long plain1_ip = 0x213f231412345678;
+	unsigned long plain2_ip = 0x2312314912345678;
+
+	int count[64] = {0};
+
+	single_diff_attack(key, plain1_ip, plain2_ip, count);
+	single_diff_attack(key, 0x2312314912345678, 0xefac214512345678, count);
+
 	for (int i = 0; i < 64; ++i)
 	{
 		if (count[i])
 			printf("%.6b=%d\n", i, count[i]);
 	}
 
-	printf("L01=%lx\n", L01);
-	printf("L02=%lx\n", L02);
-	printf("L0_xor=%lx\n", L0_xor);
-
-	printf("L31=%lx\n", L31);
-	printf("L32=%lx\n", L32);
-	printf("EL31=%lx\n", EL31);
-	printf("EL32=%lx\n", EL32);
-	printf("EL31_xor=%lx\n", EL31 ^ EL32);
-	printf("C0_xor=%lx\n", C_xor);
 	return 0;
 }
