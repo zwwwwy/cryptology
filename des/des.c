@@ -93,28 +93,29 @@ unsigned long des_n_rounds(unsigned long info, unsigned long* key_lst, int round
 	unsigned long R_init;
 	unsigned long tmp;
 
-	// printf("init L:0x%.16lx\n", L);
-	// printf("init R:0x%.16lx\n", R);
+	printf("init L:0x%.16lx\n", L);
+	printf("init R:0x%.16lx\n", R);
 	for (int i = 0; i < rounds; ++i)
 	{
 		R_init = R;
-		// printf("开始第%d轮DES\n", i + 1);
+		printf("开始第%d轮DES\n", i + 1);
 		key_i = 0;
 		// PC2_replacement(key_lst[i], &key_i);
 		key_i = key_lst[i];
-		// printf("本轮的子密钥:0x%.16lx\n", key_i);
+		printf("本轮的子密钥:0x%.16lx\n", key_i);
 
 		R_replaced = 0;
-		// printf("E表扩展前的R%d:0x%.16lx\n", i + 1, R);
+		printf("E表扩展前的R%d:0x%.16lx\n", i + 1, R);
 		E_replacement(R, &R_replaced);
-		// printf("E表扩展后的R%d:0x%.16lx\n", i + 1, R_replaced);
+		printf("E表扩展后的R%d:0x%.16lx\n", i + 1, R_replaced);
 
 		R_replaced ^= key_i;
 		R = 0;
+		printf("S盒代换前的R%d:0x%.16lx\n", i + 1, R_replaced);
 		S_replacement(R_replaced, &R);
-		// printf("S盒代换后的R%d:0x%.16lx\n", i + 1, R);
+		printf("S盒代换后的R%d:0x%.16lx\n", i + 1, R);
 
-		R_replaced = 0;
+		// R_replaced = 0;
 		// P_replacement(R, &R_replaced);
 		R_replaced = R;
 		// printf("P盒置换后的R%d:0x%.16lx\n", i + 1, R_replaced);
@@ -130,7 +131,8 @@ unsigned long des_n_rounds(unsigned long info, unsigned long* key_lst, int round
 	R	= L;
 	L	= tmp;
 	tmp = (L << 32) + R;
-	IP	= 0;
+	printf("tmp:%lx\n", tmp);
+	IP = 0;
 	IP_replacement(tmp, &IP, ip_table_r);
 
 	return IP;

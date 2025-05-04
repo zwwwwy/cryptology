@@ -5,6 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+extern const unsigned char ip_table[64];
+extern const unsigned char ip_table_r[64];
+
 int distribute(unsigned long in, int idx, single_in_out_s* l)
 {
 	unsigned long s1;
@@ -65,17 +68,29 @@ int main()
 	single_in_out_s l;
 	single_in_out_init(&l);
 	// distribute(0b110100, 0, &l);
-	// list_print(l.in_xor[0b0001]);
+	// list_print(l.in_xor[0b1100]);
 
-	unsigned long key	 = 0x123456789abcdef0;
-	unsigned long plain1 = 0x213f231412345678;
-	unsigned long plain2 = 0x2312314912345678;
+	unsigned long key = 0x123456789abcdef0;
+	// 构造IP置换后的明文，R0应该相同
+	unsigned long plain1_ip = 0x213f231412345678;
+	unsigned long plain2_ip = 0x2312314912345678;
 
-	unsigned long c1 = encrypt(key, plain1, 3);
-	unsigned long c2 = encrypt(key, plain2, 3);
+	// unsigned long c1 = encrypt(key, plain1, 3);
+	// unsigned long c2 = encrypt(key, plain2, 3);
 
-	unsigned long L01 = plain1 >> 32;
-	unsigned long L02 = plain2 >> 32;
+	// 通过IP逆置换获得对应明文，用于下面加密
+	unsigned long plain1 = 0, plain2 = 0;
+	IP_replacement(plain1_ip, &plain1, ip_table_r);
+	IP_replacement(plain2_ip, &plain2, ip_table_r);
+
+	// 加密，DES在加密结束后进行了IP逆置换，对结果应用IP置换来恢复
+	unsigned long c1 = 0, c2 = 0;
+	IP_replacement(encrypt(key, plain1, 3), &c1, ip_table);
+	IP_replacement(encrypt(key, plain2, 3), &c2, ip_table);
+
+	// 公式不考虑IP置换，因此下面应当是IP置换后的结果
+	unsigned long L01 = plain1_ip >> 32;
+	unsigned long L02 = plain2_ip >> 32;
 
 	unsigned long L31 = c1 & 0xffffffff;
 	unsigned long R31 = c1 >> 32;
@@ -86,30 +101,36 @@ int main()
 	unsigned long L0_xor = L01 ^ L02;
 	unsigned long C_xor	 = L0_xor ^ R3_xor;
 
-	unsigned long EL31, EL32;
+	unsigned long EL31 = 0, EL32 = 0;
 	E_replacement(L31, &EL31);
 	E_replacement(L32, &EL32);
 
 	distribute((EL31 ^ EL32) & 0x3f, 7, &l);
 	list_print(l.in_xor[C_xor & 0xf]);
 
-	int count[64] = {0};
-	for (int i = 0; i < 0b1000000; ++i)
+	int		count[64] = {0};
+	node_t* head	  = l.in_xor[C_xor & 0xf]->head;
+	for (int j = 0; j < l.in_xor[C_xor & 0xf]->size; ++j)
 	{
-		node_t* head = l.in_xor[C_xor & 0xf]->head;
-		for (int j = 0; j < l.in_xor[C_xor & 0xf]->size; ++j)
-		{
-			++count[i ^ (head->data)];
-			head = head->next;
-		}
+		++count[(EL31 & 0x3f) ^ (head->data)];
+		++count[(EL32 & 0x3f) ^ (head->data)];
+		head = head->next;
 	}
 	for (int i = 0; i < 64; ++i)
 	{
-		printf("count[%d]=%d\n", i, count[i]);
+		if (count[i])
+			printf("%.6b=%d\n", i, count[i]);
 	}
-	// printf("C_xor=%lx\n", C_xor);
-	// printf("EL31=%lx\n", EL31);
-	// printf("EL32=%lx\n", EL32);
-	// printf("EL31_xor=%lx\n", EL31 ^ EL32);
+
+	printf("L01=%lx\n", L01);
+	printf("L02=%lx\n", L02);
+	printf("L0_xor=%lx\n", L0_xor);
+
+	printf("L31=%lx\n", L31);
+	printf("L32=%lx\n", L32);
+	printf("EL31=%lx\n", EL31);
+	printf("EL32=%lx\n", EL32);
+	printf("EL31_xor=%lx\n", EL31 ^ EL32);
+	printf("C0_xor=%lx\n", C_xor);
 	return 0;
 }
