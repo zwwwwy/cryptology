@@ -389,20 +389,69 @@ int mod_pow_uint2048(uint2048_t* result, uint2048_t* base, const uint2048_t* exp
 // Miller–Rabin素性检验
 int isprime_uint2048(const uint2048_t* num)
 {
-	uint2048_t const_value;
-	set0_uint2048(&const_value);
+	// 小于2的素性检验
+	uint2048_t two, one, n_minus1, d, a, x;
+	set0_uint2048(&two);
+	set0_uint2048(&one);
+	two.data[63] = 2;
+	one.data[63] = 1;
 
-	// num <= 2时的素性判定
-	const_value.data[63] = 2;
-	if (!isbig_uint2048(num, &const_value))
+	if (!isbig_uint2048(num, &two))
 	{
-		if (isequal_uint2048(num, &const_value))
+		if (isequal_uint2048(num, &two))
 			return 1;
 		else
 			return 0;
 	}
 
-	// num > 2时的素性判定
+	if ((num->data[63] & 1) == 0) // 判偶
+		return 0;
 
+	// 选用确定性底数集合
+	unsigned A[]   = {2, 325, 9375, 28178, 450775, 9780504, 1795265022};
+	int		 a_len = sizeof(A) / sizeof(A[0]);
+
+	// n-1 = d * 2^r
+	set0_uint2048(&n_minus1);
+	sub_uint2048(&n_minus1, num, &one);
+
+	set0_uint2048(&d);
+	cpy_uint2048(&d, &n_minus1);
+
+	unsigned r = 0;
+	while ((d.data[63] & 1) == 0)
+	{
+		shr_uint2048(&d, 1);
+		r++;
+	}
+
+	for (int i = 0; i < a_len; ++i)
+	{
+		set0_uint2048(&a);
+		a.data[63] = A[i];
+		// 若底数大于等于num，跳过
+		if (!isbig_uint2048(num, &a))
+			continue;
+
+		set0_uint2048(&x);
+		mod_pow_uint2048(&x, &a, &d, num); // x = a^d mod num
+
+		if (isequal_uint2048(&x, &one) || isequal_uint2048(&x, &n_minus1))
+			continue;
+
+		int maybe_prime = 0;
+		for (unsigned j = 1; j < r; ++j)
+		{
+			mul_uint2048(&x, &x, &x);
+			mod_uint2048(&x, &x, num);
+			if (isequal_uint2048(&x, &n_minus1))
+			{
+				maybe_prime = 1;
+				break;
+			}
+		}
+		if (!maybe_prime)
+			return 0;
+	}
 	return 1;
 }

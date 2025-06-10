@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 int print_form(const uint2048_t* a, const uint2048_t* b, const uint2048_t* c, char* str)
 {
@@ -53,22 +54,44 @@ int test_mod_div()
 
 int test_isprime()
 {
-	uint2048_t* a = (uint2048_t*)malloc(sizeof(uint2048_t));
-	uint2048_t* b = (uint2048_t*)malloc(sizeof(uint2048_t));
-	uint2048_t* c = (uint2048_t*)malloc(sizeof(uint2048_t));
-	set0_uint2048(a), set0_uint2048(b), set0_uint2048(c);
+	clock_t start, end;
+	clock_t start_1, end_1;
 
-	printf("%d\n", isprime_uint2048(a));
+	uint2048_t* a = (uint2048_t*)malloc(sizeof(uint2048_t));
+	set0_uint2048(a);
+
+	int try = 0;
+	start	= clock();
+	while (1)
+	{
+		++try;
+		printf("尝试次数: %d\n", try);
+		rand1024_in_2048(a);
+		start_1	 = clock();
+		int flag = isprime_uint2048(a);
+		end_1	 = clock();
+		printf("单次素性检验耗时=%fs\n", (double)(end_1 - start_1) / CLOCKS_PER_SEC);
+		if (flag)
+		{
+
+			print_uint2048(a);
+			printf("\n");
+			break;
+		}
+		print_uint2048(a), printf("\n");
+	}
+	end = clock();
+	printf("time=%fs\n", (double)(end - start) / CLOCKS_PER_SEC);
 
 	return 1;
 }
 
 int main()
 {
-	printf("快速除法测试\n");
-	test_div();
-	printf("\n快速幂指数求模测试\n");
-	test_mod_div();
+	// printf("快速除法测试\n");
+	// test_div();
+	// printf("\n快速幂指数求模测试\n");
+	// test_mod_div();
 	printf("\n素性测试\n");
 	test_isprime();
 	return 0;
