@@ -34,6 +34,16 @@ int rand1024_in_2048(uint2048_t* num)
 
 	return 0;
 }
+int rand512_in_2048(uint2048_t* num)
+{
+	if (num == NULL)
+		return -1;
+
+	for (int i = 48; i < 64; ++i)
+		num->data[i] = rand() & 0xFFFFFFFF;
+
+	return 0;
+}
 
 // 2048位整数置0
 int set0_uint2048(uint2048_t* num)
@@ -476,8 +486,6 @@ int isprime_uint2048(const uint2048_t* num)
 // 扩展欧几里得算法求乘法逆元
 uint2048_t mod_inverse_uint2048(uint2048_t a, uint2048_t b, uint2048_t* x, uint2048_t* y)
 {
-	uint2048_t tmp;
-
 	if (iszero_uint2048(&b))
 	{
 		set0_uint2048(x), set0_uint2048(y);
@@ -485,15 +493,15 @@ uint2048_t mod_inverse_uint2048(uint2048_t a, uint2048_t b, uint2048_t* x, uint2
 		y->data[63] = 0;
 		return a;
 	}
+	uint2048_t tmp;
 	mod_uint2048(&tmp, &a, &b);
 	uint2048_t d = mod_inverse_uint2048(b, tmp, x, y);
-	uint2048_t x0, y0;
-	cpy_uint2048(&x0, x);
-	cpy_uint2048(&y0, y);
-	cpy_uint2048(x, &y0);
+	uint2048_t t;
+	cpy_uint2048(&t, x);
+	cpy_uint2048(x, y);
 	div_uint2048(&tmp, &a, &b);
-	mul_uint2048(&tmp, &tmp, &y0);
-	sub_uint2048(y, &x0, &tmp);
+	mul_uint2048(&tmp, &tmp, x);
+	sub_uint2048(y, &t, &tmp);
 
 	return d;
 }

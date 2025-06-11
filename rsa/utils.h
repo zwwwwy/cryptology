@@ -18,6 +18,7 @@ typedef struct uint4096
 
 int		   print_uint2048(const uint2048_t* num);
 int		   rand1024_in_2048(uint2048_t* num);
+int		   rand512_in_2048(uint2048_t* num);
 int		   set0_uint2048(uint2048_t* num);
 int		   set0_uint4096(uint4096_t* num);
 int		   shl_uint2048(uint2048_t* num, unsigned shift);

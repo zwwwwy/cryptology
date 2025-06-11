@@ -20,7 +20,7 @@ key: $(OBJ_DIR)/key_generator.o $(UTIL_FILES)
 	$(BUILD_DIR)/key_generator.out
 
 test: $(OBJ_DIR)/test.o $(UTIL_FILES)
-	$(CC) $(CFLAGS) $(OBJ_DIR)/test.o $(UTIL_FILES) -o $(BUILD_DIR)/test.out
+	$(CC) $(CFLAGS) $(OBJ_DIR)/test.o $(UTIL_FILES) -o $(BUILD_DIR)/test.out -lcrypto
 	$(BUILD_DIR)/test.out
 
 

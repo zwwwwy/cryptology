@@ -16,11 +16,11 @@ int key_generate()
 
 	// 素数生成
 	do
-		rand1024_in_2048(p);
+		rand512_in_2048(p);
 	while (!isprime_uint2048(p));
 	printf("p="), print_uint2048(p), printf("\n");
 	do
-		rand1024_in_2048(q);
+		rand512_in_2048(q);
 	while (!isprime_uint2048(q));
 	printf("q="), print_uint2048(q), printf("\n");
 
@@ -49,7 +49,6 @@ int key_generate()
 	printf("n = "), print_uint2048(n), printf("\n");
 	printf("e = "), print_uint2048(&e), printf("\n");
 	printf("d = "), print_uint2048(d), printf("\n");
-
 	uint2048_t c;
 	set0_uint2048(&c);
 	c.data[63] = 0x66666;
@@ -60,6 +59,10 @@ int key_generate()
 	mod_pow_uint2048(&c, &c, d, n);
 	printf("m="), print_uint2048(&c), printf("\n");
 
+	// FILE* fp = fopen("rsa.pub", "w");
+	// fprintf(fp, "This is testing for fprintf...\n");
+	// fputs("This is testing for fputs...\n", fp);
+	// fclose(fp);
 	free(p), free(q), free(t), free(n), free(d);
 	return 1;
 }
