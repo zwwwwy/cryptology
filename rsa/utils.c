@@ -259,73 +259,34 @@ int mul_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 // 二分法整数除法，要求b小于1024位
 int div_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 {
-	uint2048_t* tmp = (uint2048_t*)malloc(sizeof(uint2048_t));
-	set0_uint2048(tmp);
+	uint2048_t remainder, divisor, quotient, one;
+	set0_uint2048(&remainder);
+	set0_uint2048(&divisor);
+	set0_uint2048(&quotient);
+	set0_uint2048(&one);
+	one.data[63] = 1;
 
-	if (iszero_uint2048(b))
-	{
-		printf("被除数为零\n");
-		return 0;
-	}
+	cpy_uint2048(&remainder, a);
 
-	if (countbit_uint2048(b) > 1024)
-	{
-		printf("除数过大\n");
-		return 0;
-	}
-
-	if (isbig_uint2048(b, a))
+	int shift = countbit_uint2048(a) - countbit_uint2048(b);
+	if (shift < 0)
 	{
 		set0_uint2048(result);
 		return 1;
 	}
+	cpy_uint2048(&divisor, b);
+	shl_uint2048(&divisor, shift);
 
-	uint2048_t* x_min = (uint2048_t*)malloc(sizeof(uint2048_t));
-	uint2048_t* x_max = (uint2048_t*)malloc(sizeof(uint2048_t));
-	uint2048_t* x	  = (uint2048_t*)malloc(sizeof(uint2048_t));
-	set0_uint2048(x_min), set0_uint2048(x_max), set0_uint2048(x);
-
-	// 位数之差一定小于2048
-	int delta_bit	= countbit_uint2048(a) - countbit_uint2048(b);
-	x_min->data[63] = 1;
-	x_max->data[63] = 1;
-
-	if (delta_bit == 0) // 位数相同说明a一定小于b的2倍
+	for (int i = shift; i >= 0; --i)
 	{
-		cpy_uint2048(result, x_min);
-		return 1;
+		if (isbig_uint2048(&remainder, &divisor) || isequal_uint2048(&remainder, &divisor))
+		{
+			sub_uint2048(&remainder, &remainder, &divisor);
+			quotient.data[63 - i / 32] |= (1U << (i % 32));
+		}
+		shr_uint2048(&divisor, 1);
 	}
-
-	shl_uint2048(x_min, delta_bit - 1); // x_min = 2^(delta_bit-1)
-	shl_uint2048(x_max, delta_bit + 1);
-
-	uint2048_t one;
-	set0_uint2048(&one);
-	one.data[63]  = 1;
-	int times_mul = 0;
-	while (1)
-	{
-		sub_uint2048(x, x_max, x_min);
-		if (!isbig_uint2048(x, &one)) // x_max-x_min <= 1
-			break;
-
-		// x = 1.5*(x_min+x_min)
-		add_uint2048(x, x_min, x_max);
-		shr_uint2048(x, 1);
-
-		mul_uint2048(tmp, b, x);	// tmp = b*x
-		if (isbig_uint2048(tmp, a)) // x过大
-			cpy_uint2048(x_max, x);
-		else if (isbig_uint2048(a, tmp)) // x过小
-			cpy_uint2048(x_min, x);
-
-		++times_mul;
-	}
-
-	cpy_uint2048(result, x_min);
-	free(tmp), free(x_min), free(x_max), free(x);
-	if (LOG)
-		printf("作除共计搜索%d次\n", times_mul);
+	cpy_uint2048(result, &quotient);
 	return 1;
 }
 
@@ -359,12 +320,14 @@ int pow_uint2048(uint2048_t* result, const uint2048_t* base, const unsigned exp)
 }
 
 // 快速幂指数求模
-int mod_pow_uint2048(uint2048_t* result, uint2048_t* base, const uint2048_t* exp, const uint2048_t* mod)
+int mod_pow_uint2048(uint2048_t* result, const uint2048_t* base, const uint2048_t* exp, const uint2048_t* mod)
 {
-	uint2048_t* tmp = (uint2048_t*)malloc(sizeof(uint2048_t));
-	set0_uint2048(tmp);
+	uint2048_t* tmp		 = (uint2048_t*)malloc(sizeof(uint2048_t));
+	uint2048_t* tmp_base = (uint2048_t*)malloc(sizeof(uint2048_t));
+	set0_uint2048(tmp), set0_uint2048(tmp_base);
+	cpy_uint2048(tmp_base, base);
 
-	mod_uint2048(base, base, mod);
+	mod_uint2048(tmp_base, tmp_base, mod);
 	tmp->data[63] = 1;
 
 	for (int i = 0; i < 64; ++i)
@@ -375,7 +338,7 @@ int mod_pow_uint2048(uint2048_t* result, uint2048_t* base, const uint2048_t* exp
 			mod_uint2048(tmp, tmp, mod);
 			if (exp->data[i] & (1 << j))
 			{
-				mul_uint2048(tmp, tmp, base);
+				mul_uint2048(tmp, tmp, tmp_base);
 				mod_uint2048(tmp, tmp, mod);
 			}
 		}

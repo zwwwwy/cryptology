@@ -65,15 +65,14 @@ int test_isprime()
 	while (1)
 	{
 		++try;
-		printf("尝试次数: %d\n", try);
 		rand1024_in_2048(a);
+		printf("尝试次数: %d\n", try);
 		start_1	 = clock();
 		int flag = isprime_uint2048(a);
 		end_1	 = clock();
 		printf("单次素性检验耗时=%fs\n", (double)(end_1 - start_1) / CLOCKS_PER_SEC);
 		if (flag)
 		{
-
 			print_uint2048(a);
 			printf("\n");
 			break;

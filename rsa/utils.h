@@ -33,7 +33,8 @@ int mul_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b);
 int div_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b);
 int pow_uint2048(uint2048_t* result, const uint2048_t* base, const unsigned exp);
 int mod_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b);
-int mod_pow_uint2048(uint2048_t* result, uint2048_t* base, const uint2048_t* exp, const uint2048_t* mod);
+int mod_pow_uint2048(uint2048_t* result, const uint2048_t* base, const uint2048_t* exp, const uint2048_t* mod);
+int gcd_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b);
 int isprime_uint2048(const uint2048_t* num);
 
 #endif
