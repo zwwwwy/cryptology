@@ -199,11 +199,11 @@ int sub_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 	uint2048_t* tmp = (uint2048_t*)malloc(sizeof(uint2048_t));
 	set0_uint2048(tmp);
 
-	if (isbig_uint2048(b, a))
-	{
-		printf("减法溢出\n");
-		return 0;
-	}
+	// if (isbig_uint2048(b, a))
+	// {
+	//     printf("减法溢出\n");
+	//     return 0;
+	// }
 
 	unsigned long borrow = 0;
 	for (int i = 63; i >= 0; --i)
@@ -290,15 +290,43 @@ int div_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 	return 1;
 }
 
-// 基于整数除法的求模
+// 简化的高效取模函数（避免Montgomery的复杂性）
 int mod_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 {
-	uint2048_t* tmp = (uint2048_t*)malloc(sizeof(uint2048_t));
-	set0_uint2048(tmp);
+	uint2048_t remainder, divisor;
+	set0_uint2048(&remainder);
+	set0_uint2048(&divisor);
 
-	div_uint2048(tmp, a, b);
-	mul_uint2048(tmp, tmp, b);
-	sub_uint2048(result, a, tmp);
+	cpy_uint2048(&remainder, a);
+
+	// 如果 a < b，直接返回 a
+	if (!isbig_uint2048(a, b))
+	{
+		cpy_uint2048(result, a);
+		return 1;
+	}
+
+	int shift = countbit_uint2048(a) - countbit_uint2048(b);
+	if (shift < 0)
+	{
+		cpy_uint2048(result, a);
+		return 1;
+	}
+
+	cpy_uint2048(&divisor, b);
+	shl_uint2048(&divisor, shift);
+
+	// 长除法的余数计算部分
+	for (int i = shift; i >= 0; --i)
+	{
+		if (isbig_uint2048(&remainder, &divisor) || isequal_uint2048(&remainder, &divisor))
+		{
+			sub_uint2048(&remainder, &remainder, &divisor);
+		}
+		shr_uint2048(&divisor, 1);
+	}
+
+	cpy_uint2048(result, &remainder);
 	return 1;
 }
 
@@ -345,7 +373,33 @@ int mod_pow_uint2048(uint2048_t* result, const uint2048_t* base, const uint2048_
 	}
 
 	cpy_uint2048(result, tmp);
-	free(tmp);
+	free(tmp), free(tmp_base);
+	return 1;
+}
+
+// 欧几里得算法求公约数，要求a>b
+int gcd_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
+{
+	if (isbig_uint2048(b, a))
+	{
+		printf("公约数b大于a\n");
+		return 0;
+	}
+	uint2048_t* tmp	  = (uint2048_t*)malloc(sizeof(uint2048_t));
+	uint2048_t* a_tmp = (uint2048_t*)malloc(sizeof(uint2048_t));
+	uint2048_t* b_tmp = (uint2048_t*)malloc(sizeof(uint2048_t));
+	set0_uint2048(tmp);
+	cpy_uint2048(a_tmp, a), cpy_uint2048(b_tmp, b);
+
+	while (!iszero_uint2048(b_tmp))
+	{
+		cpy_uint2048(tmp, a_tmp);
+		cpy_uint2048(a_tmp, b_tmp);
+		mod_uint2048(b_tmp, tmp, b_tmp);
+	}
+	cpy_uint2048(result, a_tmp);
+
+	free(tmp), free(a_tmp), free(b_tmp);
 	return 1;
 }
 
@@ -417,4 +471,115 @@ int isprime_uint2048(const uint2048_t* num)
 			return 0;
 	}
 	return 1;
+}
+
+// 扩展欧几里得算法求乘法逆元
+uint2048_t mod_inverse_uint2048(uint2048_t a, uint2048_t b, uint2048_t* x, uint2048_t* y)
+{
+	uint2048_t tmp;
+
+	if (iszero_uint2048(&b))
+	{
+		set0_uint2048(x), set0_uint2048(y);
+		x->data[63] = 1;
+		y->data[63] = 0;
+		return a;
+	}
+	mod_uint2048(&tmp, &a, &b);
+	uint2048_t d = mod_inverse_uint2048(b, tmp, x, y);
+	uint2048_t x0, y0;
+	cpy_uint2048(&x0, x);
+	cpy_uint2048(&y0, y);
+	cpy_uint2048(x, &y0);
+	div_uint2048(&tmp, &a, &b);
+	mul_uint2048(&tmp, &tmp, &y0);
+	sub_uint2048(y, &x0, &tmp);
+
+	return d;
+}
+
+// 从十六进制字符串读取大数（只处理十六进制）
+int str_to_uint2048(uint2048_t* result, const char* str)
+{
+	if (result == NULL || str == NULL)
+	{
+		return -1;
+	}
+
+	set0_uint2048(result);
+
+	// 跳过前导空格
+	while (*str == ' ' || *str == '\t')
+	{
+		str++;
+	}
+
+	// 检查是否为空字符串
+	if (*str == '\0')
+	{
+		return -1;
+	}
+
+	// 处理"0x"或"0X"前缀
+	if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
+	{
+		str += 2;
+	}
+
+	// 检查是否为空字符串（去掉前缀后）
+	if (*str == '\0')
+	{
+		return -1;
+	}
+
+	// 计算有效字符长度
+	const char* p	= str;
+	size_t		len = 0;
+	while (*p)
+	{
+		if ((*p >= '0' && *p <= '9') || (*p >= 'A' && *p <= 'F') || (*p >= 'a' && *p <= 'f'))
+		{
+			len++;
+		}
+		else
+		{
+			return -1; // 无效字符
+		}
+		p++;
+	}
+
+	// 每8个字符可以填充一个32位块
+	// 最多可以填充64个块（2048位）
+	if (len > 512) // 512个十六进制字符 = 2048位
+	{
+		return -1; // 超出范围
+	}
+
+	// 从字符串末尾开始处理，每8个字符一组
+	int block_index = 63;			 // 从最低位开始填充
+	p				= str + len - 1; // 指向最后一个字符
+
+	// 处理完整的8个字符块
+	while (p >= str)
+	{
+		unsigned int value = 0;
+		for (int i = 0; i < 8 && p >= str; i++, p--)
+		{
+			int digit;
+			if (*p >= '0' && *p <= '9')
+				digit = *p - '0';
+			else if (*p >= 'A' && *p <= 'F')
+				digit = *p - 'A' + 10;
+			else // (*p >= 'a' && *p <= 'f')
+				digit = *p - 'a' + 10;
+
+			value |= (digit << (i * 4));
+		}
+
+		result->data[block_index--] = value;
+		if (block_index < 0) // 防止超出范围
+			break;
+	}
+
+	return 0;
 }

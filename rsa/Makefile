@@ -15,8 +15,8 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-key: $(OBJ_DIR)/key_generator.o
-	$(CC) $(CFLAGS) $(OBJ_DIR)/key_generator.o -o $(BUILD_DIR)/key_generator.out -lm
+key: $(OBJ_DIR)/key_generator.o $(UTIL_FILES)
+	$(CC) $(CFLAGS) $(OBJ_DIR)/key_generator.o $(UTIL_FILES) -o $(BUILD_DIR)/key_generator.out -lm
 	$(BUILD_DIR)/key_generator.out
 
 test: $(OBJ_DIR)/test.o $(UTIL_FILES)
