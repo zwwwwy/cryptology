@@ -1,6 +1,7 @@
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define LOG 0
 
@@ -26,6 +27,7 @@ int print_uint2048(const uint2048_t* num)
 // 填充2048位整数的低1024位为随机数
 int rand1024_in_2048(uint2048_t* num)
 {
+	// srand((unsigned)time(NULL));
 	if (num == NULL)
 		return -1;
 
@@ -36,6 +38,7 @@ int rand1024_in_2048(uint2048_t* num)
 }
 int rand512_in_2048(uint2048_t* num)
 {
+	// srand((unsigned)time(NULL));
 	if (num == NULL)
 		return -1;
 
@@ -266,7 +269,7 @@ int mul_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 	return 1;
 }
 
-// 二分法整数除法，要求b小于1024位
+// 整数除法
 int div_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 {
 	uint2048_t remainder, divisor, quotient, one;
@@ -300,7 +303,7 @@ int div_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 	return 1;
 }
 
-// 简化的高效取模函数（避免Montgomery的复杂性）
+// 取模
 int mod_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 {
 	uint2048_t remainder, divisor;
@@ -390,16 +393,22 @@ int mod_pow_uint2048(uint2048_t* result, const uint2048_t* base, const uint2048_
 // 欧几里得算法求公约数，要求a>b
 int gcd_uint2048(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
 {
-	if (isbig_uint2048(b, a))
-	{
-		printf("公约数b大于a\n");
-		return 0;
-	}
+
 	uint2048_t* tmp	  = (uint2048_t*)malloc(sizeof(uint2048_t));
 	uint2048_t* a_tmp = (uint2048_t*)malloc(sizeof(uint2048_t));
 	uint2048_t* b_tmp = (uint2048_t*)malloc(sizeof(uint2048_t));
-	set0_uint2048(tmp);
 	cpy_uint2048(a_tmp, a), cpy_uint2048(b_tmp, b);
+	if (isbig_uint2048(b, a))
+	{
+		uint2048_t change;
+		cpy_uint2048(&change, a_tmp);
+		cpy_uint2048(a_tmp, b_tmp);
+		cpy_uint2048(b_tmp, &change);
+	}
+	else
+		cpy_uint2048(a_tmp, a), cpy_uint2048(b_tmp, b);
+
+	set0_uint2048(tmp);
 
 	while (!iszero_uint2048(b_tmp))
 	{
@@ -481,29 +490,6 @@ int isprime_uint2048(const uint2048_t* num)
 			return 0;
 	}
 	return 1;
-}
-
-// 扩展欧几里得算法求乘法逆元
-uint2048_t mod_inverse_uint2048(uint2048_t a, uint2048_t b, uint2048_t* x, uint2048_t* y)
-{
-	if (iszero_uint2048(&b))
-	{
-		set0_uint2048(x), set0_uint2048(y);
-		x->data[63] = 1;
-		y->data[63] = 0;
-		return a;
-	}
-	uint2048_t tmp;
-	mod_uint2048(&tmp, &a, &b);
-	uint2048_t d = mod_inverse_uint2048(b, tmp, x, y);
-	uint2048_t t;
-	cpy_uint2048(&t, x);
-	cpy_uint2048(x, y);
-	div_uint2048(&tmp, &a, &b);
-	mul_uint2048(&tmp, &tmp, x);
-	sub_uint2048(y, &t, &tmp);
-
-	return d;
 }
 
 // 从十六进制字符串读取大数（只处理十六进制）
@@ -590,4 +576,138 @@ int str_to_uint2048(uint2048_t* result, const char* str)
 	}
 
 	return 0;
+}
+
+int generate_prime512(uint2048_t* prime)
+{
+	set0_uint2048(prime);
+	unsigned int small_primes[167] = {
+		3,	 5,	  7,   11,	13,	 17,  19,  23,	29,	 31,  37,  41,	43,	 47,  53,  59,	61,	 67,  71,  73,	79,
+		83,	 89,  97,  101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191,
+		193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281, 283, 293, 307, 311,
+		313, 317, 331, 337, 347, 349, 353, 359, 367, 373, 379, 383, 389, 397, 401, 409, 419, 421, 431, 433, 439,
+		443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569, 571, 577,
+		587, 593, 599, 601, 607, 613, 617, 619, 631, 641, 643, 647, 653, 659, 661, 673, 677, 683, 691, 701, 709,
+		719, 727, 733, 739, 743, 751, 757, 761, 769, 773, 787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857,
+		859, 863, 877, 881, 883, 887, 907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997};
+
+	uint2048_t small_prime, tmp, two;
+	set0_uint2048(&small_prime), set0_uint2048(&tmp), set0_uint2048(&two);
+	two.data[63] = 2;
+
+	rand512_in_2048(prime);
+	prime->data[48] |= 0x80000000;
+	prime->data[63] |= 1;
+retest:
+	add_uint2048(prime, prime, &two);
+	for (int i = 0; i < 167; ++i)
+	{
+		small_prime.data[63] = small_primes[i];
+		mod_uint2048(&tmp, prime, &small_prime);
+		if (iszero_uint2048(&tmp))
+			goto retest;
+	}
+
+	if (!isprime_uint2048(prime))
+	{
+		goto retest;
+	}
+
+	return 1;
+}
+
+// 扩展欧几里得算法求乘法逆元
+uint2048_t mod_inverse_uint2048(uint2048_t a, uint2048_t b, uint2048_t* x, uint2048_t* y)
+{
+	if (iszero_uint2048(&b))
+	{
+		set0_uint2048(x), set0_uint2048(y);
+		x->data[63] = 1;
+		y->data[63] = 0;
+		return a;
+	}
+	uint2048_t tmp;
+	mod_uint2048(&tmp, &a, &b);
+	uint2048_t d = mod_inverse_uint2048(b, tmp, x, y);
+	uint2048_t t;
+	cpy_uint2048(&t, x);
+	cpy_uint2048(x, y);
+	div_uint2048(&tmp, &a, &b);
+	mul_uint2048(&tmp, &tmp, x);
+	sub_uint2048(y, &t, &tmp);
+
+	return d;
+}
+
+int mod_inverse_uint2048_new(uint2048_t* result, const uint2048_t* a, const uint2048_t* b)
+{
+	if (iszero_uint2048(b))
+	{
+		printf("模逆元不存在：模数为零。\n");
+		return 0; // 返回失败
+	}
+
+	uint2048_t x, y, x_prev, y_prev, tmp, quotient, remainder, gcd_val, one;
+	set0_uint2048(&x);
+	set0_uint2048(&y);
+	set0_uint2048(&x_prev);
+	set0_uint2048(&y_prev);
+	set0_uint2048(&tmp);
+	set0_uint2048(&quotient);
+	set0_uint2048(&remainder);
+	set0_uint2048(&gcd_val);
+	set0_uint2048(&one);
+
+	x_prev.data[63] = 1; // 初始值 x_prev = 1
+	one.data[63]	= 1;
+
+	uint2048_t a_tmp, b_tmp;
+	cpy_uint2048(&a_tmp, a);
+	cpy_uint2048(&b_tmp, b);
+
+	while (!iszero_uint2048(&b_tmp))
+	{
+		div_uint2048(&quotient, &a_tmp, &b_tmp);  // 计算商
+		mod_uint2048(&remainder, &a_tmp, &b_tmp); // 计算余数
+
+		cpy_uint2048(&a_tmp, &b_tmp);
+		cpy_uint2048(&b_tmp, &remainder);
+
+		// 更新 x 和 y
+		cpy_uint2048(&tmp, &x);
+		cpy_uint2048(&x, &x_prev);
+		cpy_uint2048(&x_prev, &tmp);
+		mul_uint2048(&tmp, &quotient, &x);
+		sub_uint2048(&x_prev, &x_prev, &tmp); // x_prev = x_prev - quotient * x;
+
+		cpy_uint2048(&tmp, &y);
+		cpy_uint2048(&y, &y_prev);
+		cpy_uint2048(&y_prev, &tmp);
+		mul_uint2048(&tmp, &quotient, &y);
+		sub_uint2048(&y_prev, &y_prev, &tmp); // y_prev = y_prev - quotient * y;
+	}
+
+	// 计算最大公约数
+	cpy_uint2048(&gcd_val, &a_tmp);
+
+	// 检查结果是否有效
+	if (!isequal_uint2048(&gcd_val, &one))
+	{
+		printf("模逆元不存在：a 和 b 不互质。\n");
+		return 0; // 返回失败
+	}
+
+	// 如果 x_prev 为负数，调整为正数
+	if (isbig_uint2048(b, &x_prev))
+	{
+		add_uint2048(result, &x_prev, b);
+	}
+	else
+	{
+		cpy_uint2048(result, &x_prev);
+	}
+
+	mod_uint2048(result, result, b);
+
+	return 1; // 返回成功
 }

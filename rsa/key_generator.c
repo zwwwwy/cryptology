@@ -15,13 +15,16 @@ int key_generate()
 	set0_uint2048(p), set0_uint2048(q), set0_uint2048(t), set0_uint2048(d);
 
 	// 素数生成
+	// generate_prime512(p);
+	// generate_prime512(q);
 	do
 		rand512_in_2048(p);
 	while (!isprime_uint2048(p));
-	printf("p="), print_uint2048(p), printf("\n");
 	do
 		rand512_in_2048(q);
 	while (!isprime_uint2048(q));
+
+	printf("p="), print_uint2048(p), printf("\n");
 	printf("q="), print_uint2048(q), printf("\n");
 
 	mul_uint2048(n, p, q);
@@ -49,15 +52,38 @@ int key_generate()
 	printf("n = "), print_uint2048(n), printf("\n");
 	printf("e = "), print_uint2048(&e), printf("\n");
 	printf("d = "), print_uint2048(d), printf("\n");
-	uint2048_t c;
-	set0_uint2048(&c);
-	c.data[63] = 0x66666;
-	printf("\nm="), print_uint2048(&c), printf("\n");
-	mod_pow_uint2048(&c, &c, &e, n);
-	printf("c="), print_uint2048(&c), printf("\n");
-	printf("验证：\n");
-	mod_pow_uint2048(&c, &c, d, n);
-	printf("m="), print_uint2048(&c), printf("\n");
+
+	char* str	  = "Hello, world! Encrypted by RSA.";
+	int	  str_len = 0;
+	for (char* ptr = str; *ptr; ++ptr)
+		++str_len;
+	// for (int i = 0; i < str_len; i += 4)
+	//     printf("%.8x ", *((unsigned*)str + i));
+
+	for (int i = 0; i < str_len; i += 64)
+	{
+		uint2048_t* c = (uint2048_t*)malloc(sizeof(uint2048_t));
+		set0_uint2048(c);
+		for (int i = 48; i < 64; ++i)
+		{
+			c->data[i] |= (unsigned)*(str) << 24;
+			c->data[i] |= (unsigned)*(str + 1) << 16;
+			c->data[i] |= (unsigned)*(str + 2) << 8;
+			c->data[i] |= (unsigned)*(str + 3);
+			str += 4;
+		}
+
+		set0_uint2048(c);
+		c->data[63] = 0x66666;
+
+		printf("m0="), print_uint2048(c), printf("\n");
+		mod_pow_uint2048(c, c, &e, n);
+		printf("\n加密：\n%s", (char*)c);
+		printf("c="), print_uint2048(c), printf("\n");
+		mod_pow_uint2048(c, c, d, n);
+		printf("解密：%s", (char*)c);
+		printf("m="), print_uint2048(c), printf("\n");
+	}
 
 	// FILE* fp = fopen("rsa.pub", "w");
 	// fprintf(fp, "This is testing for fprintf...\n");
